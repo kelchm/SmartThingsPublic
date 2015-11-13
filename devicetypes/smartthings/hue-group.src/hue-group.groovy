@@ -24,7 +24,7 @@ metadata {
 		// TODO: define status and reply messages here
 	}
 
-		tiles(scale: 2) {
+	tiles(scale: 2) {
 		multiAttributeTile(name:"rich-control", type: "lighting", canChangeIcon: true){
 			tileAttribute ("device.switch", key: "PRIMARY_CONTROL") {
 			  attributeState "on", label:'${name}', action:"switch.off", icon:"st.lights.philips.hue-multi", backgroundColor:"#79b821", nextState:"turningOff"
