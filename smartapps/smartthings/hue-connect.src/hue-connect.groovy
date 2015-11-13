@@ -923,6 +923,22 @@ def convertBulbListToMap() {
 	}
 }
 
+def convertGroupListToMap() {
+	log.debug "CONVERT LIST"
+	try {
+		if (state.groups instanceof java.util.List) {
+			def map = [:]
+			state.groups.unique {it.id}.each { group ->
+				map << ["${group.id}g":["id":group.id+"g", "name":group.name, "hub":group.hub]]
+			}
+			state.group = map
+		}
+	}
+	catch(Exception e) {
+		log.error "Caught error attempting to convert group list to map: $e"
+	}
+}
+
 private String convertHexToIP(hex) {
 	[convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
 }
