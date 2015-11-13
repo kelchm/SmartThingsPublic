@@ -1,4 +1,3 @@
-
 /**
  *  Hue Bulb
  *
@@ -16,8 +15,8 @@ metadata {
 		capability "Sensor"
 
 		command "setAdjustedColor"
-                command "reset"        
-                command "refresh"
+		command "reset"        
+		command "refresh"
 	}
 
 	simulator {
@@ -119,20 +118,20 @@ def setColor(value) {
 
 def reset() {
 	log.debug "Executing 'reset'"
-    def value = [level:100, hex:"#90C638", saturation:56, hue:23]
-    setAdjustedColor(value)
+	def value = [level:100, hex:"#90C638", saturation:56, hue:23]
+	setAdjustedColor(value)
 	parent.poll()
 }
 
 def setAdjustedColor(value) {
 	if (value) {
-        log.trace "setAdjustedColor: ${value}"
-        def adjusted = value + [:]
-        adjusted.hue = adjustOutgoingHue(value.hue)
-        // Needed because color picker always sends 100
-        adjusted.level = null 
-        setColor(adjusted)
-    }
+		log.trace "setAdjustedColor: ${value}"
+		def adjusted = value + [:]
+		adjusted.hue = adjustOutgoingHue(value.hue)
+		// Needed because color picker always sends 100
+		adjusted.level = null 
+		setColor(adjusted)
+	}
 }
 
 def refresh() {
