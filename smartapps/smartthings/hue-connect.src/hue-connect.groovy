@@ -582,7 +582,7 @@ def locationHandler(evt) {
 
 					log.debug "Adding bulbs and groups to state!"
 					body.each { k,v ->
-                    	log.debug v.type
+						log.debug v.type
 						if(v.type.equalsIgnoreCase("LightGroup"))
 						{
 							groups[k] = [id: k, name: v.name, type: v.type, hub:parsedEvent.hub]
@@ -637,7 +637,7 @@ def parse(childDevice, description) {
 					def d = bulbs.find{it.deviceNetworkId == "${app.id}/${bulb.key}"}    
 					if (d) {
 						if(!bulb.value.type.equalsIgnoreCase("LightGroup"))
-                 		{
+						{
 							if (bulb.value.state?.reachable) {
 								sendEvent(d.deviceNetworkId, [name: "switch", value: bulb.value?.state?.on ? "on" : "off"])
 								sendEvent(d.deviceNetworkId, [name: "level", value: Math.round(bulb.value.state.bri * 100 / 255)])
@@ -666,24 +666,24 @@ def parse(childDevice, description) {
 				}
 
 				for (bulb in body) {
-	                def d = bulbs.find{it.deviceNetworkId == "${app.id}/${bulb.key}g"}    
-	                if (d) {
-		                if(bulb.value.type == "LightGroup")
-	                	{
+					def d = bulbs.find{it.deviceNetworkId == "${app.id}/${bulb.key}g"}    
+					if (d) {
+						if(bulb.value.type == "LightGroup")
+						{
 								sendEvent(d.deviceNetworkId, [name: "switch", value: bulb.value?.value?.action?.on ? "on" : "off"])
 								sendEvent(d.deviceNetworkId, [name: "level", value: Math.round(bulb.value?.action?.bri * 100 / 255)])
-	                        if (bulb.value?.action?.sat) 
-	                        {
+							if (bulb.value?.action?.sat) 
+							{
 								def hue = Math.min(Math.round(bulb.value.action.hue * 100 / 65535), 65535) as int
 								def sat = Math.round(bulb.value.action.sat * 100 / 255) as int
 								def hex = colorUtil.hslToHex(hue, sat)
 								sendEvent(d.deviceNetworkId, [name: "color", value: hex])
 								sendEvent(d.deviceNetworkId, [name: "hue", value: hue])
 								sendEvent(d.deviceNetworkId, [name: "saturation", value: sat])
-	                        }
-	                    }
-	                }
-             	}
+							}
+						}
+					}
+				}
 			}
 			else
 			{ //put response
@@ -695,25 +695,25 @@ def parse(childDevice, description) {
 						def childDeviceNetworkId = app.id + "/"
 						def eventType
 						body?.success[0].each { k,v ->
-                            childDeviceNetworkId += k.split("/")[2]
-                            if (!hsl[childDeviceNetworkId]) hsl[childDeviceNetworkId] = [:]
-                            eventType = k.split("/")[4]
-                            log.debug "eventType: $eventType"
-                            switch(eventType) {
-                                case "on":
-                                    sendEvent(childDeviceNetworkId, [name: "switch", value: (v == true) ? "on" : "off"])
-                                    break
-                                case "bri":
-                                    sendEvent(childDeviceNetworkId, [name: "level", value: Math.round(v * 100 / 255)])
-                                    break
-                                case "sat":
-                                    hsl[childDeviceNetworkId].saturation = Math.round(v * 100 / 255) as int
-                                    break
-                                case "hue":
-                                    hsl[childDeviceNetworkId].hue = Math.min(Math.round(v * 100 / 65535), 65535) as int
-                                    break
-                            }
-                        }
+							childDeviceNetworkId += k.split("/")[2]
+							if (!hsl[childDeviceNetworkId]) hsl[childDeviceNetworkId] = [:]
+							eventType = k.split("/")[4]
+							log.debug "eventType: $eventType"
+							switch(eventType) {
+								case "on":
+									sendEvent(childDeviceNetworkId, [name: "switch", value: (v == true) ? "on" : "off"])
+									break
+								case "bri":
+									sendEvent(childDeviceNetworkId, [name: "level", value: Math.round(v * 100 / 255)])
+									break
+								case "sat":
+									hsl[childDeviceNetworkId].saturation = Math.round(v * 100 / 255) as int
+									break
+								case "hue":
+									hsl[childDeviceNetworkId].hue = Math.min(Math.round(v * 100 / 65535), 65535) as int
+									break
+							}
+						}
 
 					}
 					else if (payload.error)
