@@ -744,13 +744,13 @@ def parse(childDevice, description) {
 
 def on(childDevice) {
 	log.debug "Executing 'on'"
-	put("${getType(childDevice)}/${getId(childDevice)}/state", [on: true])
+	put("${getPath(childDevice)}", [on: true])
 	return "Bulb is On"
 }
 
 def off(childDevice) {
 	log.debug "Executing 'off'"
-	put("${getType(childDevice)}/${getId(childDevice)}/state", [on: false])
+	put("${getPath(childDevice)}", [on: false])
 	return "Bulb is Off"
 }
 
@@ -758,19 +758,19 @@ def setLevel(childDevice, percent) {
 	log.debug "Executing 'setLevel'"
 	def level 
 	if (percent == 1) level = 1 else level = Math.min(Math.round(percent * 255 / 100), 255)
-	put("${getType(childDevice)}/${getId(childDevice)}/state", [bri: level, on: percent > 0])
+	put("${getPath(childDevice)}", [bri: level, on: percent > 0])
 }
 
 def setSaturation(childDevice, percent) {
 	log.debug "Executing 'setSaturation($percent)'"
 	def level = Math.min(Math.round(percent * 255 / 100), 255)
-	put("${getType(childDevice)}/${getId(childDevice)}/state", [sat: level])
+	put("${getPath(childDevice)}", [sat: level])
 }
 
 def setHue(childDevice, percent) {
 	log.debug "Executing 'setHue($percent)'"
 	def level =	Math.min(Math.round(percent * 65535 / 100), 65535)
-	put("${getType(childDevice)}/${getId(childDevice)}/state", [hue: level])
+	put("${getPath(childDevice)}", [hue: level])
 }
 
 def setColor(childDevice, huesettings) {
@@ -791,7 +791,7 @@ def setColor(childDevice, huesettings) {
 	}
 
 	log.debug "sending command $value"
-	put("${getType(childDevice)}/${getId(childDevice)}/state", value)
+	put("${getPath(childDevice)}", value)
 }
 
 def nextLevel(childDevice) {
@@ -814,20 +814,34 @@ private getId(childDevice) {
 	}
 }
 
-private getType(childDevice) {
+private getPath(childDevice) {
+	def path = "/"
+
 	if (childDevice.device?.deviceNetworkId?.endsWith("g")) {
-		return "groups"
+		path = "groups/${getId(childDevice)}/action"
 	}
 	else {
-		return "lights"
+		path = "lights/${getId(childDevice)}/state"
 	}
+
+	return path
 }
 
 private poll() {
 	def host = getBridgeIP()
-	def uri = "/api/${state.username}/lights/"
+	def uri = "/api/${state.username}/"
 	try {
-		sendHubCommand(new physicalgraph.device.HubAction("""GET ${uri} HTTP/1.1
+		sendHubCommand(new physicalgraph.device.HubAction("""GET ${uri}lights/ HTTP/1.1
+HOST: ${host}
+
+""", physicalgraph.device.Protocol.LAN, selectedHue))
+	} catch (all) {
+		log.warn "Parsing Body failed - trying again..."
+		doDeviceSync()
+	}
+
+	try {
+		sendHubCommand(new physicalgraph.device.HubAction("""GET ${uri}groups/ HTTP/1.1
 HOST: ${host}
 
 """, physicalgraph.device.Protocol.LAN, selectedHue))
