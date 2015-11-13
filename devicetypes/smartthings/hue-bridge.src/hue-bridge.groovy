@@ -65,12 +65,28 @@ def parse(description) {
 				def contentType = msg.headers["Content-Type"]
 				if (contentType?.contains("json")) {
 					def bulbs = new groovy.json.JsonSlurper().parseText(msg.body)
+                    boolean isLightGroup = false
+                    bulbs.each{
+                    	log.info it.toString().contains("LightGroup")
+                        isLightGroup = it.toString().contains("LightGroup")
+                    }
 					if (bulbs.state) {
 						log.info "Bridge response: $msg.body"
 					} else {
-						// Sending Bulbs List to parent"
+						// Sending Bulbs or Groups List to parent"
                         if (parent.state.inBulbDiscovery)
-                        	log.info parent.bulbListHandler(device.hub.id, msg.body)
+                        {
+                        	if(isLightGroup)
+                        	{
+                        		log.trace "Sending Group List"
+								log.info parent.groupListHandler(device.hub.id, msg.body)
+                        	} else
+                            {
+                            	log.trace "Sending Bulb List"
+                            	log.info parent.bulbListHandler(device.hub.id, msg.body)
+                            }
+                        }
+                        	
 					}
 				}
 				else if (contentType?.contains("xml")) {

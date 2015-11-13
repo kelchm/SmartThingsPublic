@@ -137,6 +137,7 @@ def bulbDiscovery() {
 	if (selectedHue) {
 		bridge = getChildDevice(selectedHue)
 		subscribe(bridge, "bulbList", bulbListData)
+		subscribe(bridge, "groupList", groupListData)
 	}
 	state.bridgeRefreshCount = 0
 	def bulbOptions = bulbsDiscovered() ?: [:]
@@ -151,6 +152,7 @@ def bulbDiscovery() {
 		
 	if((bulbRefreshCount % 5) == 0) {
 		discoverHueBulbs()
+		discoverHueGroups()
 	}
 
 	return dynamicPage(name:"bulbDiscovery", title:"Bulb Discovery Started!", nextPage:"", refreshInterval:refreshInterval, install:true, uninstall: true) {
@@ -192,12 +194,14 @@ private discoverHueBulbs() {
 }
 
 private discoverHueGroups() {
+	log.info "DISCOVERING HUE GROUPS"
+	def host = getBridgeIP()
 	sendHubCommand(new physicalgraph.device.HubAction([
 		method: "GET",
 		path: "/api/${state.username}/groups",
 		headers: [
-			HOST: bridgeHostnameAndPort
-		]], bridgeDni))
+			HOST: host
+		]], "${selectedHue}"))
 }
 
 private verifyHueBridge(String deviceNetworkId, String host) {
@@ -273,6 +277,10 @@ def bulbListData(evt) {
 	state.bulbs = evt.jsonData
 }
 
+def groupListData(evt) {
+	state.groups = evt.jsonData
+}
+
 Map getHueBulbs() {
 	state.bulbs = state.bulbs ?: [:]
 }
@@ -333,7 +341,6 @@ def bulbListHandler(hub, data = "") {
 	def msg = "Bulbs list not processed. Only while in settings menu."
 	def bulbs = [:]
 	if (state.inBulbDiscovery) {       
-		def logg = ""
 		log.trace "Adding bulbs to state..."
 		state.bridgeProcessedLightList = true
 		def object = new groovy.json.JsonSlurper().parseText(data)   
@@ -355,17 +362,16 @@ def groupListHandler(hub, data = "") {
 	def msg = "Groups list not processed. Only while in settings menu."
 	def groups = [:]
 	if (state.inBulbDiscovery) {       
-		def logg = ""
-		log.trace "Adding bulbs to state..."
-		//state.bridgeProcessedLightList = true
+		log.trace "Adding groups to state..."
+		state.bridgeProcessedGroupList = true
 		def object = new groovy.json.JsonSlurper().parseText(data)   
 		object.each { k,v ->
 			if (v instanceof Map) 
-				groups[k] = [id: k, name: v.name, type: v.type, hub:hub]
+				groups[k] = [id: k, name: v.name, type: v.type, colorMode: v.action?.colormode, hub:hub]
 		}
 	}  
 	def bridge = null
-	if (selected) 
+	if (selectedHue) 
 		bridge = getChildDevice(selectedHue)
 	bridge.sendEvent(name: "groupList", value: hub, data: groups, isStateChange: true, displayed: false)
 	msg = "${groups.size()} groups found. ${groups}"
@@ -417,8 +423,8 @@ def addGroups() {
 			def newHueGroup
 			if (groups instanceof java.util.Map) {
 				newHueGroup = groups.find { (app.id + "/" + it.value.id + "g") == dni }
-				if (newHueGroup != null) {
-					if (newHueGroup?.value?.type?.equalsIgnoreCase("LightGroup") && newHueGroup?.value?.action?.colormode?.equalsIgnoreCase("hs")) {
+				if (newHueGroup?.value?.type?.equalsIgnoreCase("LightGroup")) {
+					if (newHueGroup?.value?.colorMode?.equalsIgnoreCase("hs")) {
 						d = addChildDevice("smartthings", "Hue Group", dni, newHueGroup?.value.hub, ["label":newHueGroup?.value.name])
 					} else {
 						d = addChildDevice("smartthings", "Hue Lux Group", dni, newHueGroup?.value.hub, ["label":newHueGroup?.value.name])
@@ -660,25 +666,24 @@ def parse(childDevice, description) {
 				}
 
 				for (bulb in body) {
-                def d = bulbs.find{it.deviceNetworkId == "${app.id}/${bulb.key}g"}    
-                if (d) {
-	                if(bulb.value.type == "LightGroup")
-                	{
-                        sendEvent(d.deviceNetworkId, [name: "switch", value: bulb.value?.action?.on ? "on" : "off"])
-                        sendEvent(d.deviceNetworkId, [name: "level", value: Math.round(bulb.value.action.bri * 100 / 255)])
-                        if (bulb.value.action.sat) 
-                        {
-							def hue = Math.min(Math.round(bulb.value.state.hue * 100 / 65535), 65535) as int
-							def sat = Math.round(bulb.value.state.sat * 100 / 255) as int
-							def hex = colorUtil.hslToHex(hue, sat)
-							sendEvent(d.deviceNetworkId, [name: "color", value: hex])
-							sendEvent(d.deviceNetworkId, [name: "hue", value: hue])
-							sendEvent(d.deviceNetworkId, [name: "saturation", value: sat])
-                        }
-                    }
-	                        
-                }
-             }
+	                def d = bulbs.find{it.deviceNetworkId == "${app.id}/${bulb.key}g"}    
+	                if (d) {
+		                if(bulb.value.type == "LightGroup")
+	                	{
+								sendEvent(d.deviceNetworkId, [name: "switch", value: bulb.value?.value?.action?.on ? "on" : "off"])
+								sendEvent(d.deviceNetworkId, [name: "level", value: Math.round(bulb.value?.action?.bri * 100 / 255)])
+	                        if (bulb.value?.action?.sat) 
+	                        {
+								def hue = Math.min(Math.round(bulb.value.action.hue * 100 / 65535), 65535) as int
+								def sat = Math.round(bulb.value.action.sat * 100 / 255) as int
+								def hex = colorUtil.hslToHex(hue, sat)
+								sendEvent(d.deviceNetworkId, [name: "color", value: hex])
+								sendEvent(d.deviceNetworkId, [name: "hue", value: hue])
+								sendEvent(d.deviceNetworkId, [name: "saturation", value: sat])
+	                        }
+	                    }
+	                }
+             	}
 			}
 			else
 			{ //put response
@@ -690,33 +695,25 @@ def parse(childDevice, description) {
 						def childDeviceNetworkId = app.id + "/"
 						def eventType
 						body?.success[0].each { k,v ->
-							if(k.split("/")[1] == "groups")
-							{
-								childDeviceNetworkId += k.split("/")[2] + "g"
-							}
-							else
-							{
-								childDeviceNetworkId += k.split("/")[2]
-							}
-
-							if (!hsl[childDeviceNetworkId]) hsl[childDeviceNetworkId] = [:]
-							eventType = k.split("/")[4]
-							log.debug "eventType: $eventType"
-							switch(eventType) {
-								case "on":
-									sendEvent(childDeviceNetworkId, [name: "switch", value: (v == true) ? "on" : "off"])
-									break
-								case "bri":
-									sendEvent(childDeviceNetworkId, [name: "level", value: Math.round(v * 100 / 255)])
-									break
-								case "sat":
-									hsl[childDeviceNetworkId].saturation = Math.round(v * 100 / 255) as int
-									break
-								case "hue":
-									hsl[childDeviceNetworkId].hue = Math.min(Math.round(v * 100 / 65535), 65535) as int
-									break
-							}
-						}
+                            childDeviceNetworkId += k.split("/")[2]
+                            if (!hsl[childDeviceNetworkId]) hsl[childDeviceNetworkId] = [:]
+                            eventType = k.split("/")[4]
+                            log.debug "eventType: $eventType"
+                            switch(eventType) {
+                                case "on":
+                                    sendEvent(childDeviceNetworkId, [name: "switch", value: (v == true) ? "on" : "off"])
+                                    break
+                                case "bri":
+                                    sendEvent(childDeviceNetworkId, [name: "level", value: Math.round(v * 100 / 255)])
+                                    break
+                                case "sat":
+                                    hsl[childDeviceNetworkId].saturation = Math.round(v * 100 / 255) as int
+                                    break
+                                case "hue":
+                                    hsl[childDeviceNetworkId].hue = Math.min(Math.round(v * 100 / 65535), 65535) as int
+                                    break
+                            }
+                        }
 
 					}
 					else if (payload.error)
@@ -830,6 +827,7 @@ private getPath(childDevice) {
 private poll() {
 	def host = getBridgeIP()
 	def uri = "/api/${state.username}/"
+
 	try {
 		sendHubCommand(new physicalgraph.device.HubAction("""GET ${uri}lights/ HTTP/1.1
 HOST: ${host}
@@ -931,7 +929,7 @@ def convertGroupListToMap() {
 			state.groups.unique {it.id}.each { group ->
 				map << ["${group.id}g":["id":group.id+"g", "name":group.name, "hub":group.hub]]
 			}
-			state.group = map
+			state.groups = map
 		}
 	}
 	catch(Exception e) {
