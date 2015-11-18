@@ -36,7 +36,6 @@ def mainPage() {
 		}
 	} else {
 		def upgradeNeeded = """To use SmartThings Labs, your Hub should be completely up to date.
-
 To update your Hub, access Location Settings in the Main Menu (tap the gear next to your location name), select your Hub, and choose "Update Hub"."""
 
 		return dynamicPage(name:"bridgeDiscovery", title:"Upgrade needed!", nextPage:"", install:false, uninstall: true) {
@@ -334,7 +333,7 @@ def addBulbs() {
 				if (newHueBulb?.value?.type?.equalsIgnoreCase("Dimmable light")) {
 					d = addChildDevice("kelchm", "Hue Lux Bulb", dni, newHueBulb?.value.hub, ["label":newHueBulb?.value.name])
 				} else {
-					d = addChildDevice("kekchm", "Hue Bulb", dni, newHueBulb?.value.hub, ["label":newHueBulb?.value.name])
+					d = addChildDevice("kelchm", "Hue Bulb", dni, newHueBulb?.value.hub, ["label":newHueBulb?.value.name])
 				}
 			} else { 
             	//backwards compatable
@@ -912,14 +911,12 @@ private poll() {
 	log.debug "GET:  $uri"
 	sendHubCommand(new physicalgraph.device.HubAction("""GET ${uri} HTTP/1.1
 HOST: ${selectedHue}
-
 """, physicalgraph.device.Protocol.LAN, "${selectedHue}"))
 
 	uri = "/api/${state.username}/groups/"
 	log.debug "GET:  $uri"
 	sendHubCommand(new physicalgraph.device.HubAction("""GET ${uri} HTTP/1.1
 HOST: ${selectedHue}
-
 """, physicalgraph.device.Protocol.LAN, "${selectedHue}"))
 
 
@@ -944,19 +941,17 @@ private put(path, body) {
 		uri = "/api/${state.username}/$path"[0..-1]
 
 	}
-	def bodyJSON = new groovy.json.JsonBuilder(body).toString()
-	def length = bodyJSON.getBytes().size().toString()
 
 	log.debug "PUT:  $uri"
-	log.debug "BODY: ${bodyJSON}"
+	log.debug "BODY: ${body}"
 
-	sendHubCommand(new physicalgraph.device.HubAction("""PUT $uri HTTP/1.1
-HOST: ${selectedHue}
-Content-Length: ${length}
-
-${bodyJSON}
-""", physicalgraph.device.Protocol.LAN, "${selectedHue}"))
-
+	sendHubCommand(new physicalgraph.device.HubAction([
+		method: "PUT",
+		path: uri,
+		headers: [
+			HOST: selectedHue
+		],
+		body: body], "${selectedHue}"))
 }
 
 private Integer convertHexToInt(hex) {
